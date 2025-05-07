@@ -142,6 +142,11 @@ REST_FRAMEWORK = {
 
 # CORS settings - Allow all origins for development
 CORS_ALLOW_ALL_ORIGINS = True
+
+# Custom User Model
+AUTH_USER_MODEL = 'api.User'
+
+# Simple JWT settings (optional, for token lifetimes, etc.)
 from datetime import timedelta
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
