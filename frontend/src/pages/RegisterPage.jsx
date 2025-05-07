@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useAuth } from '../context/AuthContext'; // Import useAuth
 import axios from 'axios'; // For API calls
 
 const RegisterPage = () => {
   const navigate = useNavigate();
+  const { register } = useAuth(); // Get register function from context
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -15,8 +17,8 @@ const RegisterPage = () => {
     // location: '', // Optional, add if you want it on the registration form initially
   });
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -24,37 +26,50 @@ const RegisterPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+    setIsLoading(true);
+
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match.');
+      setError("Passwords don't match.");
+      setIsLoading(false);
       return;
     }
-    setError('');
-    setSuccess('');
-    setLoading(true);
 
     try {
-      // IMPORTANT: Replace with your actual backend API URL
-      const apiPayload = { ...formData };
-      delete apiPayload.confirmPassword; // Don't send confirmPassword to backend
+      const registrationResult = await register({
+        email: formData.email,
+        password: formData.password,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        role: formData.role,
+      });
 
-      const response = await axios.post('http://localhost:8000/api/register/', apiPayload);
-      console.log('Registration successful:', response.data);
-      setSuccess('Registration successful! Please log in.');
-      // Optionally, redirect to login or auto-login the user
-      setTimeout(() => navigate('/login'), 2000); 
-    } catch (err) {
-      console.error('Registration error:', err.response ? err.response.data : err.message);
-      let errorMessage = 'Registration failed. Please try again.';
-      if (err.response && err.response.data) {
-        // Handle specific error messages from backend if available
-        const errors = err.response.data;
-        if (errors.email) errorMessage = `Email: ${errors.email.join(' ')}`;
-        else if (errors.password) errorMessage = `Password: ${errors.password.join(' ')}`;
-        // Add more specific error handling as needed
+      if (registrationResult.success) {
+        setSuccessMessage('Registration successful! Please login.');
+        // Optionally, redirect to login page after a short delay
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+      } else {
+        // Handle specific errors from backend if available
+        const errorData = registrationResult.error;
+        if (errorData && typeof errorData === 'object') {
+          let errorMsg = 'Registration failed:';
+          for (const key in errorData) {
+            errorMsg += ` ${key}: ${errorData[key].join ? errorData[key].join(', ') : errorData[key]}`;
+          }
+          setError(errorMsg);
+        } else {
+          setError(errorData || 'Registration failed. Please try again.');
+        }
       }
-      setError(errorMessage);
+    } catch (err) {
+      // This catch block might be redundant
+      setError(err.response?.data?.detail || 'An unexpected error occurred.');
+      console.error('Registration error:', err.response || err.message);
     }
-    setLoading(false);
+    setIsLoading(false);
   };
 
   const pageVariants = {
@@ -87,9 +102,9 @@ const RegisterPage = () => {
             {error}
           </div>
         )}
-        {success && (
+        {successMessage && (
           <div className="bg-green-500/20 text-green-300 p-3 rounded-md mb-6 text-sm">
-            {success}
+            {successMessage}
           </div>
         )}
 
@@ -164,17 +179,22 @@ const RegisterPage = () => {
 
           <motion.button
             type="submit"
-            disabled={loading}
+            disabled={isLoading} // Disable button when loading
             className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: isLoading ? 1 : 1.02 }} // Disable hover effect when loading
+            whileTap={{ scale: isLoading ? 1 : 0.98 }} // Disable tap effect when loading
           >
-             {loading ? (
-              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : 'Create Account'}
+            {isLoading ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Registering...
+              </>
+            ) : (
+              'Create Account'
+            )}
           </motion.button>
         </form>
 

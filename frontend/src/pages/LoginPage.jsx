@@ -1,35 +1,37 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import axios from 'axios'; // For API calls
+import { useAuth } from '../context/AuthContext'; // Import useAuth
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { login } = useAuth(); // Get login function from context
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
+    setIsLoading(true);
     try {
-      // IMPORTANT: Replace with your actual backend API URL
-      const response = await axios.post('http://localhost:8000/api/token/', {
-        email,
-        password,
-      });
-      console.log('Login successful:', response.data);
-      // Store tokens (e.g., in localStorage) and redirect
-      localStorage.setItem('accessToken', response.data.access);
-      localStorage.setItem('refreshToken', response.data.refresh);
-      navigate('/dashboard/student'); // Or to a relevant dashboard based on role
+      const loginResult = await login(email, password); // Use context login
+
+      if (loginResult.success) {
+        // Determine redirect path based on user role if available
+        // For now, just redirect to student dashboard as a default
+        // You might decode the token here to get user role or have it in loginResult.user
+        navigate('/dashboard/student'); // Or a generic /dashboard
+      } else {
+        setError(loginResult.error?.detail || loginResult.error || 'Login failed. Please check your credentials.');
+      }
     } catch (err) {
-      console.error('Login error:', err.response ? err.response.data : err.message);
-      setError(err.response?.data?.detail || 'Login failed. Please check your credentials.');
+      // This catch block might be redundant if context handles errors, but good for direct errors
+      setError(err.response?.data?.detail || 'An unexpected error occurred. Please try again.');
+      console.error('Login error:', err.response || err.message);
     }
-    setLoading(false);
+    setIsLoading(false);
   };
 
   const pageVariants = {
@@ -98,17 +100,22 @@ const LoginPage = () => {
 
           <motion.button
             type="submit"
-            disabled={loading}
+            disabled={isLoading}
             className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: isLoading ? 1 : 1.02 }}
+            whileTap={{ scale: isLoading ? 1 : 0.98 }}
           >
-            {loading ? (
-              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : 'Sign In'}
+            {isLoading ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Logging in...
+              </>
+            ) : (
+              'Login'
+            )}
           </motion.button>
         </form>
 
